@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="UsageMaxxing logo">
+  <rect width="128" height="128" rx="28" fill="#101114"/>
+  <path d="M30 78a34 34 0 0 1 68 0" fill="none" stroke="#2c3138" stroke-width="12" stroke-linecap="round"/>
+  <path d="M30 78a34 34 0 0 1 51.8-28.9" fill="none" stroke="#48d98a" stroke-width="12" stroke-linecap="round"/>
+  <path d="M81.8 49.1A34 34 0 0 1 98 78" fill="none" stroke="#f2c14e" stroke-width="12" stroke-linecap="round"/>
+  <path d="M64 78 88 54" fill="none" stroke="#f25f5c" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="64" cy="78" r="7" fill="#f4f7fb"/>
+  <path d="M38 95h52" stroke="#f4f7fb" stroke-opacity=".72" stroke-width="8" stroke-linecap="round"/>
+  <path d="M103 27l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7z" fill="#f4f7fb"/>
+</svg>

@@ -3,6 +3,7 @@ import UsageMaxxingCore
 
 @main
 struct UsageMaxxingApp: App {
+    @StateObject private var dashboard = UsageDashboardModel()
     @AppStorage("showMenuBarExtra") private var showMenuBarExtra = true
     @AppStorage("cachedPressureScore") private var cachedPressureScore = 0
     @AppStorage("cachedPressureLevel") private var cachedPressureLevel = UsagePressureLevel.low.rawValue
@@ -15,6 +16,7 @@ struct UsageMaxxingApp: App {
     var body: some Scene {
         MenuBarExtra(isInserted: $showMenuBarExtra) {
             DashboardView()
+                .environmentObject(dashboard)
                 .frame(width: 460, height: dashboardCompactMode ? 520 : 640)
         } label: {
             MenuBarStatusLabel(
@@ -26,7 +28,8 @@ struct UsageMaxxingApp: App {
 
         Settings {
             SettingsView()
-                .frame(width: 520, height: 520)
+                .environmentObject(dashboard)
+                .frame(width: 540, height: 700)
         }
     }
 

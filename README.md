@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/usage-maxxing-logo.png" alt="UsageMaxxing" width="128" />
+</p>
+
 # UsageMaxxing
 
 UsageMaxxing is a local-first macOS menu bar app for exact AI subscription usage pulled from installed app integrations.
@@ -27,6 +31,7 @@ Installed apps with expired auth or unavailable local state are shown separately
 - Predictive hints: depletion estimate, burn notes, velocity vs last sync
 - Collapsible multi-metric cards with provider identity rails
 - Compact dashboard mode for continuous monitoring
+- Full settings: auto-refresh, launch at login, diagnostics, privacy masking
 
 ## Supported plugin providers
 
@@ -57,13 +62,10 @@ test -f dist/UsageMaxxing.app/Contents/MacOS/UsageMaxxing_UsageMaxxing.bundle/lo
 ## Release package
 
 ```sh
-VERSION=1.0.0 Scripts/package-release.sh
+Scripts/package-release.sh
 ```
 
-## Logo
-
-- SVG: `docs/assets/usage-maxxing-logo.svg`
-- App icon: `UsageMaxxing/Resources/AppIcon.icns`
+Version and build number are read from the root `VERSION` file. See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Privacy
 

@@ -5,6 +5,8 @@ struct ExactProviderCardView: View {
     let provider: ExactProviderResult
     let compactMode: Bool
     let isLive: Bool
+    @AppStorage("privacyMode") private var privacyMode = true
+    @AppStorage("showPredictiveInsights") private var showPredictiveInsights = true
     @State private var isExpanded = false
 
     private var primaryLine: ExactUsageLine? {
@@ -42,7 +44,7 @@ struct ExactProviderCardView: View {
             }
             Spacer(minLength: 8)
             if let line = primaryLine {
-                Text(compactValue(for: line))
+                Text(maskedCompactValue(for: line))
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
                     .foregroundStyle(DashboardTheme.color(for: UsageIntensity.from(used: line.used, limit: line.limit)))
             }
@@ -65,14 +67,18 @@ struct ExactProviderCardView: View {
                         ExactUsageLineView(
                             line: line,
                             provider: provider.provider,
-                            isLive: isLive
+                            isLive: isLive,
+                            privacyMode: privacyMode,
+                            showPredictiveInsights: showPredictiveInsights
                         )
                     }
                 } else if let line = primaryLine {
                     ExactUsageLineView(
                         line: line,
                         provider: provider.provider,
-                        isLive: isLive
+                        isLive: isLive,
+                        privacyMode: privacyMode,
+                        showPredictiveInsights: showPredictiveInsights
                     )
                     if provider.lines.count > 1 {
                         Text("+\(provider.lines.count - 1) more metrics")
@@ -146,6 +152,11 @@ struct ExactProviderCardView: View {
         return label.lowercased()
     }
 
+    private func maskedCompactValue(for line: ExactUsageLine) -> String {
+        if privacyMode { return "•••" }
+        return compactValue(for: line)
+    }
+
     private func compactValue(for line: ExactUsageLine) -> String {
         if let value = line.value { return value }
         guard let used = line.used, let limit = line.limit, limit > 0 else { return "—" }
@@ -160,6 +171,8 @@ private struct ExactUsageLineView: View {
     let line: ExactUsageLine
     let provider: String
     var isLive: Bool = false
+    var privacyMode: Bool = false
+    var showPredictiveInsights: Bool = true
 
     private var intensity: UsageIntensity {
         UsageIntensity.from(used: line.used, limit: line.limit)
@@ -215,7 +228,9 @@ private struct ExactUsageLineView: View {
 
     @ViewBuilder
     private var insightFooter: some View {
-        let notes = [insight.statusNote, insight.depletionEstimate, insight.velocityNote].compactMap { $0 }
+        let notes = showPredictiveInsights
+            ? [insight.statusNote, insight.depletionEstimate, insight.velocityNote].compactMap { $0 }
+            : []
         if notes.isEmpty {
             EmptyView()
         } else {
@@ -241,6 +256,7 @@ private struct ExactUsageLineView: View {
     }
 
     private var valueText: String {
+        if privacyMode { return "•••" }
         if let value = line.value { return value }
         if let text = line.text { return text }
         guard let used = line.used, let limit = line.limit else { return "Live" }

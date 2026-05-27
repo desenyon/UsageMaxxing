@@ -2,13 +2,20 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [[ -f "$ROOT/VERSION" ]]; then
+  VERSION="${VERSION:-$(sed -n '1p' "$ROOT/VERSION" | tr -d '[:space:]')}"
+  BUILD_NUMBER="${BUILD_NUMBER:-$(sed -n '2p' "$ROOT/VERSION" | tr -d '[:space:]')}"
+else
+  VERSION="${VERSION:-1.1.0}"
+  BUILD_NUMBER="${BUILD_NUMBER:-2}"
+fi
+
 APP_DIR="$ROOT/dist/UsageMaxxing.app"
 CONTENTS="$APP_DIR/Contents"
 MACOS="$CONTENTS/MacOS"
 RESOURCES="$CONTENTS/Resources"
 BUILD_CONFIG="${BUILD_CONFIG:-release}"
-VERSION="${VERSION:-1.0.0}"
-BUILD_NUMBER="${BUILD_NUMBER:-1}"
 
 cd "$ROOT"
 python3 "$ROOT/Scripts/generate_app_icon.py" >&2

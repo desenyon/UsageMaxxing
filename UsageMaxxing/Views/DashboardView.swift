@@ -1,87 +1,34 @@
 import SwiftUI
 import UsageMaxxingCore
 
-@MainActor
-private final class ExactUsageViewModel: ObservableObject {
-    @Published var snapshot: ExactUsageSnapshot?
-    @Published var isRefreshing = false
-    @Published var errorMessage: String?
-    @Published var pressure = UsagePressureSnapshot(score: 0, level: .low, nextReset: nil)
-
-    var exactProviders: [ExactProviderResult] {
-        let providers = snapshot?.results.filter { $0.installed && $0.status == "ok" && !$0.lines.isEmpty } ?? []
-        return providers.sorted { lhs, rhs in
-            peakUsage(rhs) > peakUsage(lhs)
-        }
-    }
-
-    var unavailableInstalledProviders: [ExactProviderResult] {
-        snapshot?.results.filter { $0.installed && $0.status != "ok" } ?? []
-    }
-
-    func refresh() {
-        guard !isRefreshing else { return }
-        isRefreshing = true
-        errorMessage = nil
-
-        Task.detached {
-            let result: Result<ExactUsageSnapshot, Error>
-            do {
-                let service = ExactUsageBridgeService(scriptURL: Bundle.module.url(forResource: "local_exact_usage_bridge", withExtension: "mjs")!)
-                result = .success(try service.fetch())
-            } catch {
-                result = .failure(error)
-            }
-
-            await MainActor.run {
-                self.isRefreshing = false
-                switch result {
-                case .success(let snapshot):
-                    self.snapshot = snapshot
-                    self.pressure = UsagePressureCalculator.calculate(from: snapshot)
-                    UsageSyncHistory.shared.record(snapshot: snapshot)
-                    UserDefaults.standard.set(self.pressure.score, forKey: "cachedPressureScore")
-                    UserDefaults.standard.set(self.pressure.level.rawValue, forKey: "cachedPressureLevel")
-                case .failure(let error):
-                    self.errorMessage = error.localizedDescription
-                }
-            }
-        }
-    }
-
-    private func peakUsage(_ provider: ExactProviderResult) -> Double {
-        provider.lines.compactMap { line -> Double? in
-            guard let used = line.used, let limit = line.limit, limit > 0 else { return nil }
-            return used / limit
-        }.max() ?? 0
-    }
-}
-
 struct DashboardView: View {
-    @StateObject private var model = ExactUsageViewModel()
+    @EnvironmentObject private var dashboard: UsageDashboardModel
     @AppStorage("dashboardCompactMode") private var compactMode = false
+    @AppStorage("showPressureStrip") private var showPressureStrip = true
 
     var body: some View {
         VStack(spacing: 0) {
             header
-            pressureStrip
+            if showPressureStrip {
+                pressureStrip
+            }
 
-            if model.isRefreshing && model.snapshot == nil {
+            if dashboard.isRefreshing && dashboard.snapshot == nil {
                 loadingState
-            } else if let errorMessage = model.errorMessage, model.snapshot == nil {
+            } else if let errorMessage = dashboard.errorMessage, dashboard.snapshot == nil {
                 errorState(errorMessage)
             } else {
                 ScrollView {
                     LazyVStack(spacing: compactMode ? 6 : 8) {
-                        ForEach(model.exactProviders, id: \.provider) { provider in
+                        ForEach(dashboard.exactProviders, id: \.provider) { provider in
                             ExactProviderCardView(
                                 provider: provider,
                                 compactMode: compactMode,
-                                isLive: model.isRefreshing
+                                isLive: dashboard.isRefreshing
                             )
                         }
 
-                        if !model.unavailableInstalledProviders.isEmpty {
+                        if !dashboard.unavailableInstalledProviders.isEmpty {
                             unavailableSection
                         }
                     }
@@ -91,11 +38,8 @@ struct DashboardView: View {
             }
         }
         .background(DashboardTheme.pageBackground)
-        .onAppear {
-            if model.snapshot == nil {
-                model.refresh()
-            }
-        }
+        .onAppear { dashboard.onAppear() }
+        .onDisappear { dashboard.onDisappear() }
     }
 
     private var header: some View {
@@ -124,9 +68,9 @@ struct DashboardView: View {
             .help(compactMode ? "Standard layout" : "Compact layout")
 
             Button {
-                model.refresh()
+                dashboard.refresh()
             } label: {
-                if model.isRefreshing {
+                if dashboard.isRefreshing {
                     ProgressView()
                         .controlSize(.small)
                 } else {
@@ -155,10 +99,10 @@ struct DashboardView: View {
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.secondary)
             Spacer()
-            Text("\(model.pressure.score)%")
+            Text("\(dashboard.pressure.score)%")
                 .font(.system(size: 12, weight: .bold, design: .monospaced))
                 .foregroundStyle(pressureColor)
-            Text(model.pressure.level.label)
+            Text(dashboard.pressure.level.label)
                 .font(.system(size: 9, weight: .semibold))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
@@ -172,13 +116,13 @@ struct DashboardView: View {
 
     private var headerStatusLine: String {
         var parts: [String] = []
-        if let snapshot = model.snapshot {
-            parts.append("\(model.exactProviders.count) sources synced")
+        if let snapshot = dashboard.snapshot {
+            parts.append("\(dashboard.exactProviders.count) sources synced")
             parts.append("updated \(UsageDateFormatting.relativeString(for: snapshot.generatedAt))")
-            if let nextReset = model.pressure.nextReset {
+            if let nextReset = dashboard.pressure.nextReset {
                 parts.append("next reset \(UsageDateFormatting.relativeString(for: nextReset))")
             }
-            parts.append("pressure \(model.pressure.level.label)")
+            parts.append("pressure \(dashboard.pressure.level.label)")
         } else {
             parts.append("Exact local app usage only")
         }
@@ -186,7 +130,7 @@ struct DashboardView: View {
     }
 
     private var pressureColor: Color {
-        switch model.pressure.level {
+        switch dashboard.pressure.level {
         case .low: DashboardTheme.healthy
         case .medium: DashboardTheme.warning
         case .high: DashboardTheme.critical
@@ -216,7 +160,7 @@ struct DashboardView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 16)
             Button("Retry") {
-                model.refresh()
+                dashboard.refresh()
             }
             Spacer()
         }
@@ -228,7 +172,7 @@ struct DashboardView: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
 
-            ForEach(model.unavailableInstalledProviders, id: \.provider) { provider in
+            ForEach(dashboard.unavailableInstalledProviders, id: \.provider) { provider in
                 HStack(alignment: .top, spacing: 8) {
                     RoundedRectangle(cornerRadius: 1.5)
                         .fill(DashboardTheme.railColor(for: provider.provider).opacity(0.5))

@@ -39,4 +39,15 @@ struct ExactUsageBridgeServiceTests {
         #expect(snapshot.results[0].lines[0].used == 55)
         #expect(snapshot.results[0].lines[0].format?.kind == "percent")
     }
+
+    @Test("redacts bearer and refresh tokens from bridge errors")
+    func redactsSensitiveBridgeErrors() {
+        let message = "curl -H Authorization: Bearer abc.def.ghi refresh_token=secret123 access_token: live456"
+        let redacted = ExactUsageBridgeService.redactSensitiveContent(message)
+
+        #expect(redacted.contains("abc.def.ghi") == false)
+        #expect(redacted.contains("secret123") == false)
+        #expect(redacted.contains("live456") == false)
+        #expect(redacted.contains("<redacted>"))
+    }
 }

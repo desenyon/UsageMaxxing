@@ -81,7 +81,7 @@ public final class ExactUsageBridgeService {
 
         guard process.terminationStatus == 0 else {
             let message = String(data: errorData, encoding: .utf8) ?? "Exact usage bridge failed."
-            throw ExactUsageBridgeError.bridgeFailed(message)
+            throw ExactUsageBridgeError.bridgeFailed(Self.redactSensitiveContent(message))
         }
 
         let decoder = JSONDecoder()
@@ -100,5 +100,24 @@ public final class ExactUsageBridgeService {
             "/usr/bin/node"
         ]
         return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
+    public static func redactSensitiveContent(_ text: String) -> String {
+        var redacted = text
+        let patterns = [
+            #"Bearer\s+[A-Za-z0-9._~+/=-]+"#,
+            #"(?i)(access[_-]?token["'\s:=]+)[A-Za-z0-9._~+/=-]+"#,
+            #"(?i)(refresh[_-]?token["'\s:=]+)[A-Za-z0-9._~+/=-]+"#,
+            #"(?i)(authorization["'\s:=]+)[A-Za-z0-9._~+/=-]+"#
+        ]
+
+        for pattern in patterns {
+            redacted = redacted.replacingOccurrences(
+                of: pattern,
+                with: "$1<redacted>",
+                options: .regularExpression
+            )
+        }
+        return redacted
     }
 }

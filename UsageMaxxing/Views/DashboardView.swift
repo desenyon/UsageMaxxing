@@ -12,11 +12,14 @@ struct DashboardView: View {
             if showPressureStrip {
                 pressureStrip
             }
+            summaryBar
 
             if dashboard.isRefreshing && dashboard.snapshot == nil {
                 loadingState
             } else if let errorMessage = dashboard.errorMessage, dashboard.snapshot == nil {
                 errorState(errorMessage)
+            } else if dashboard.exactProviders.isEmpty {
+                emptyExactState
             } else {
                 ScrollView {
                     LazyVStack(spacing: compactMode ? 6 : 8) {
@@ -58,6 +61,13 @@ struct DashboardView: View {
             }
 
             Spacer()
+
+            Text("Exact only")
+                .font(.system(size: 9, weight: .bold))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(DashboardTheme.healthy.opacity(0.14), in: Capsule())
+                .foregroundStyle(DashboardTheme.healthy)
 
             Button {
                 compactMode.toggle()
@@ -114,6 +124,51 @@ struct DashboardView: View {
         .background(DashboardTheme.cardBackground.opacity(0.65))
     }
 
+    private var summaryBar: some View {
+        HStack(spacing: 8) {
+            summaryPill(
+                title: "Live",
+                value: "\(dashboard.exactProviders.count)",
+                color: DashboardTheme.healthy
+            )
+            summaryPill(
+                title: "Unavailable",
+                value: "\(dashboard.unavailableInstalledProviders.count)",
+                color: dashboard.unavailableInstalledProviders.isEmpty ? DashboardTheme.unknown : DashboardTheme.warning
+            )
+            summaryPill(
+                title: "Plugins",
+                value: "\(dashboard.diagnostics.installedPluginCount)",
+                color: dashboard.diagnostics.pluginDirectoryExists ? DashboardTheme.unknown : DashboardTheme.critical
+            )
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(DashboardTheme.pageBackground)
+    }
+
+    private func summaryPill(title: String, value: String, color: Color) -> some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(color)
+                .frame(width: 5, height: 5)
+            Text(title)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 2)
+            Text(value)
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundStyle(.primary.opacity(0.9))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(DashboardTheme.cardBackground, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .stroke(DashboardTheme.cardBorder)
+        )
+    }
+
     private var headerStatusLine: String {
         var parts: [String] = []
         if let snapshot = dashboard.snapshot {
@@ -166,6 +221,26 @@ struct DashboardView: View {
         }
     }
 
+    private var emptyExactState: some View {
+        VStack(spacing: 10) {
+            Spacer()
+            Image(systemName: "sensor.tag.radiowaves.forward")
+                .font(.system(size: 25))
+                .foregroundStyle(DashboardTheme.warning)
+            Text("No exact usage sources returned data")
+                .font(.system(size: 13, weight: .bold))
+            Text("Install provider apps, keep local auth valid, and make sure OpenUsage-compatible plugins are present.")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 22)
+            Button("Refresh") {
+                dashboard.refresh()
+            }
+            Spacer()
+        }
+    }
+
     private var unavailableSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Installed but unavailable")
@@ -180,6 +255,9 @@ struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(DashboardTheme.displayName(for: provider.provider))
                             .font(.system(size: 11, weight: .bold))
+                        Text("Action needed")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(DashboardTheme.warning)
                         Text(provider.error ?? provider.status)
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(.secondary)

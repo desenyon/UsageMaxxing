@@ -60,6 +60,14 @@ function runSecurity(args) {
   }
 }
 
+function redactSensitive(text) {
+  return String(text)
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
+    .replace(/(access[_-]?token["'\\s:=]+)[A-Za-z0-9._~+/=-]+/gi, "$1<redacted>")
+    .replace(/(refresh[_-]?token["'\\s:=]+)[A-Za-z0-9._~+/=-]+/gi, "$1<redacted>")
+    .replace(/(authorization["'\\s:=]+)[A-Za-z0-9._~+/=-]+/gi, "$1<redacted>");
+}
+
 function sqliteQuery(dbPath, sql) {
   const output = execFileSync("/usr/bin/sqlite3", ["-json", expand(dbPath), sql], {
     encoding: "utf8",
@@ -143,9 +151,9 @@ function makeContext(provider) {
         },
       },
       log: {
-        info: (msg) => console.error(`[${provider}] ${String(msg)}`),
-        warn: (msg) => console.error(`[${provider}] WARN ${String(msg)}`),
-        error: (msg) => console.error(`[${provider}] ERROR ${String(msg)}`),
+        info: (msg) => console.error(`[${provider}] ${redactSensitive(msg)}`),
+        warn: (msg) => console.error(`[${provider}] WARN ${redactSensitive(msg)}`),
+        error: (msg) => console.error(`[${provider}] ERROR ${redactSensitive(msg)}`),
       },
       http: { request: curlRequest },
       ls: { discover: discoverLanguageServer },
@@ -284,7 +292,7 @@ async function probeProvider(provider) {
     }
     return { provider, installed: true, status: "ok", plan: result?.plan || null, lines };
   } catch (error) {
-    return { provider, installed: true, status: "error", lines: [], error: String(error) };
+    return { provider, installed: true, status: "error", lines: [], error: redactSensitive(error) };
   }
 }
 
